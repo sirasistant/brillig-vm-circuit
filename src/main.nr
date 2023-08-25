@@ -4,7 +4,10 @@ mod memory;
 mod test_utils;
 mod binary_op;
 
-use dep::std::option::Option;
+use dep::std::{
+    option::Option,
+    println,
+};
 use opcodes::{
     RegisterIndex,
     Opcode,
@@ -37,6 +40,10 @@ use test_utils::{
     build_trap,
     build_stop,
     build_load,
+    build_store,
+    build_call,
+    build_return,
+    build_const,
 };
 
 
@@ -44,7 +51,7 @@ global TAPE_LEN = 180;
 global MAX_ITERATIONS = 100;
 global REGISTER_COUNT = 15;
 global MEM_COUNT = 50;
-global MAX_CALL_STACK = 10;
+global MAX_CALL_STACK: u64 = 10;
 
 // TODO: Extract implementation of opcodes to separate functions for each opcode
 fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> pub bool {
@@ -62,6 +69,7 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
         if !finished {
             let opcode = Opcode::from_tape(tape, program_counter * Opcode::serialized_length());
             assert(opcode.is_valid());
+
             if opcode.code == BINARY_FIELD_OP {
                 let bin_opcode = opcode.unwrap_binary_field_op();
                 apply_binary_field_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, &mut registers);
@@ -102,7 +110,7 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
                 registers.set(const_op.destination, const_op.value);
                 program_counter += 1;
             } else if opcode.code == RETURN {
-                assert(call_stack_pointer != 0);
+                assert(call_stack_pointer > 0);
                 call_stack_pointer -= 1;
                 let return_location = call_stack[call_stack_pointer];
                 program_counter = return_location;
@@ -145,4 +153,32 @@ fn test_load_jmp() {
     opcodes[3] = build_stop();
 
     assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [1; MEM_COUNT]));
+}
+
+#[test]
+fn test_load_store() {
+    let mut opcodes = [build_trap(); 6];
+    
+    opcodes[0] = build_const(1, 0); // Write 1 to register 0
+    opcodes[1] = build_store(0, 2); // Write from register 0 to address 2
+    opcodes[2] = build_load(2, 1); // Load from address 2 into register 1
+    opcodes[3] = build_jump_if(1, 5);
+    opcodes[4] = build_trap();
+    opcodes[5] = build_stop();
+
+    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+}
+
+#[test]
+fn test_call_return() {
+    let mut opcodes = [build_trap(); 6];
+    
+    opcodes[0] = build_call(4);
+    opcodes[1] = build_jump_if(0, 3); // Check for 1 in register 0 (set by called function)
+    opcodes[2] = build_trap();
+    opcodes[3] = build_stop();
+    opcodes[4] = build_const(1, 0); // Set register 0 to 1
+    opcodes[5] = build_return();
+
+    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }

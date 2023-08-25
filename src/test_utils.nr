@@ -52,6 +52,27 @@ fn build_stop() -> Opcode {
     }
 }
 
+fn build_return() -> Opcode {
+    Opcode {
+        code: RETURN,
+        operands: [0; 5]
+    }
+}
+
+fn build_call(destination: Field) -> Opcode {
+    Opcode {
+        code: CALL,
+        operands: [destination, 0, 0, 0, 0]
+    }
+}
+
+fn build_const(value: Field, destination: Field) -> Opcode {
+    Opcode {
+        code: CONST,
+        operands: [destination, value, 0, 0, 0]
+    }
+}
+
 
 fn to_tape<N, K>(opcodes: [Opcode; N], mut tape: [Field; K]) -> [Field; K] {
     let mut i = 0;
