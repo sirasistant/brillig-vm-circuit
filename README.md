@@ -1,3 +1,3 @@
 # Brillig VM Circuit
 
-Experimenting with a noir brillig VM circuit
+Experimenting with brillig VM circuit written in noir
