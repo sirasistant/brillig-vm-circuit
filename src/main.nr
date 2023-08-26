@@ -50,13 +50,20 @@ use test_utils::{
 
 
 global TAPE_LEN = 180; // 30 opcodes
-global MAX_ITERATIONS = 100;
+global MAX_ITERATIONS = 10;
 global REGISTER_COUNT = 15;
 global MEM_COUNT = 50;
 global MAX_CALL_STACK: u64 = 10;
 
+struct ExecutionResult {
+    errored: bool,
+    finished: bool,
+    registers: [Field; REGISTER_COUNT],
+    memory: [Field; MEM_COUNT],
+}
+
 // TODO: Extract implementation of opcodes to separate functions for each opcode
-fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> pub bool {
+fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> pub ExecutionResult {
     let mut registers = Registers::new(initial_registers);
     let mut memory = Memory::new(initial_memory);
 
@@ -139,10 +146,19 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
         }
     }
 
-    assert(finished);
-    !errored
+    ExecutionResult {
+        errored,
+        finished,
+        registers: registers.values,
+        memory: memory.values,
+    }
 }
 
+fn execution_succeeds(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> bool {
+    let result = main(tape, initial_registers, initial_memory);
+    assert(result.finished);
+    !result.errored
+}
 
 #[test]
 fn test_load_jmp_if() {
@@ -153,10 +169,10 @@ fn test_load_jmp_if() {
     opcodes[2] = build_trap();
     opcodes[3] = build_stop();
 
-    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [1; MEM_COUNT]));
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [1; MEM_COUNT]));
 
     // Else branch
-    assert(!main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(!execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }
 
 #[test]
@@ -167,10 +183,10 @@ fn test_jmp_if_not() {
     opcodes[1] = build_trap();
     opcodes[2] = build_stop();
 
-    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 
     // Else branch
-    assert(!main(to_tape(opcodes, [0; TAPE_LEN]), [1; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(!execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [1; REGISTER_COUNT], [0; MEM_COUNT]));
 }
 
 #[test]
@@ -181,7 +197,7 @@ fn test_jmp() {
     opcodes[1] = build_trap();
     opcodes[2] = build_stop();
 
-    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }
 
 #[test]
@@ -195,7 +211,7 @@ fn test_load_store() {
     opcodes[4] = build_trap();
     opcodes[5] = build_stop();
 
-    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }
 
 #[test]
@@ -209,5 +225,5 @@ fn test_call_return() {
     opcodes[4] = build_const(1, 0); // Set register 0 to 1
     opcodes[5] = build_return();
 
-    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }
