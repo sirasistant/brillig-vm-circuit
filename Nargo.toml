@@ -1,7 +1,3 @@
-[package]
-name = "brillig_vm_circuit"
-type = "bin"
-authors = [""]
-compiler_version = "0.10.3"
-
-[dependencies]
+[workspace]
+members = ["brillig_vm", "tape_gen", "runner"]
+default-member = "runner"

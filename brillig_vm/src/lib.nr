@@ -63,16 +63,23 @@ struct ExecutionResult {
 }
 
 // TODO: Extract implementation of opcodes to separate functions for each opcode
-fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> pub ExecutionResult {
+fn run(
+    tape: [Field; TAPE_LEN], 
+    initial_registers: [Field; REGISTER_COUNT], 
+    initial_memory: [Field; MEM_COUNT], 
+    initial_program_counter: Field, 
+    initial_call_stack: [Field; MAX_CALL_STACK],
+    initial_call_stack_pointer: u64,
+) -> ExecutionResult {
     let mut registers = Registers::new(initial_registers);
     let mut memory = Memory::new(initial_memory);
 
     let mut errored = false;
     let mut finished = false;
-    let mut program_counter: Field = 0;
+    let mut program_counter: Field = initial_program_counter;
 
-    let mut call_stack = [0; MAX_CALL_STACK];
-    let mut call_stack_pointer: u64 = 0;
+    let mut call_stack = initial_call_stack;
+    let mut call_stack_pointer: u64 = initial_call_stack_pointer;
     
     for _ in 0..MAX_ITERATIONS {
         if !finished {
@@ -155,7 +162,7 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
 }
 
 fn execution_succeeds(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], initial_memory: [Field; MEM_COUNT]) -> bool {
-    let result = main(tape, initial_registers, initial_memory);
+    let result = run(tape, initial_registers, initial_memory, 0, [0; MAX_CALL_STACK], 0);
     assert(result.finished);
     !result.errored
 }

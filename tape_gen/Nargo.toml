@@ -1,0 +1,8 @@
+[package]
+name = "tape_gen"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.3"
+
+[dependencies]
+brillig_vm = { path = "../brillig_vm" }
