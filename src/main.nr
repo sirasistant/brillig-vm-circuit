@@ -50,7 +50,7 @@ use test_utils::{
 
 
 global TAPE_LEN = 180; // 30 opcodes
-global MAX_ITERATIONS = 10;
+global MAX_ITERATIONS = 10; // low iterations for faster testing
 global REGISTER_COUNT = 15;
 global MEM_COUNT = 50;
 global MAX_CALL_STACK: u64 = 10;
