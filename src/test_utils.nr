@@ -24,6 +24,20 @@ fn build_jump_if(condition: Field, location: Field) -> Opcode {
     }
 }
 
+fn build_jump_if_not(condition: Field, location: Field) -> Opcode {
+    Opcode {
+        code: JUMP_IF_NOT,
+        operands: [condition, location, 0, 0, 0]
+    }
+}
+
+fn build_jump(location: Field) -> Opcode {
+    Opcode {
+        code: JUMP,
+        operands: [location, 0, 0, 0, 0]
+    }
+}
+
 fn build_load(source_pointer: Field, destination: Field) -> Opcode {
     Opcode {
         code: LOAD,

@@ -37,6 +37,8 @@ use binary_op::{
 use test_utils::{
     to_tape,
     build_jump_if,
+    build_jump_if_not,
+    build_jump,
     build_trap,
     build_stop,
     build_load,
@@ -47,7 +49,7 @@ use test_utils::{
 };
 
 
-global TAPE_LEN = 180;
+global TAPE_LEN = 180; // 30 opcodes
 global MAX_ITERATIONS = 100;
 global REGISTER_COUNT = 15;
 global MEM_COUNT = 50;
@@ -144,15 +146,43 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
 
 
 #[test]
-fn test_load_jmp() {
+fn test_load_jmp_if() {
     let mut opcodes = [build_trap(); 4];
     
-    opcodes[0] = build_load(0, 0);
-    opcodes[1] = build_jump_if(0, 3);
+    opcodes[0] = build_load(0, 0); // Load from address stored in register 0 to register 0
+    opcodes[1] = build_jump_if(0, 3); // Check for 1 in register 0
     opcodes[2] = build_trap();
     opcodes[3] = build_stop();
 
     assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [1; MEM_COUNT]));
+
+    // Else branch
+    assert(!main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+}
+
+#[test]
+fn test_jmp_if_not() {
+    let mut opcodes = [build_trap(); 3];
+    
+    opcodes[0] = build_jump_if_not(0, 2); // Check for 0 in register 0
+    opcodes[1] = build_trap();
+    opcodes[2] = build_stop();
+
+    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+
+    // Else branch
+    assert(!main(to_tape(opcodes, [0; TAPE_LEN]), [1; REGISTER_COUNT], [0; MEM_COUNT]));
+}
+
+#[test]
+fn test_jmp() {
+    let mut opcodes = [build_trap(); 3];
+    
+    opcodes[0] = build_jump(2);
+    opcodes[1] = build_trap();
+    opcodes[2] = build_stop();
+
+    assert(main(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }
 
 #[test]

@@ -34,6 +34,41 @@ fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: Regi
     registers.set(result, result_value);
 }
 
+#[test]
+fn test_apply_binary_field_op() {
+    let mut registers = Registers::new([0; 3]);
+    let register_0 = RegisterIndex::new(0);
+    let register_1 = RegisterIndex::new(1);
+    let register_2 = RegisterIndex::new(2);
+    
+    registers.set(register_0, 1);
+    
+    apply_binary_field_op(register_0, register_0, register_1, FIELD_ADD, &mut registers);
+    assert(registers.get(register_0) == 1);
+    assert(registers.get(register_1) == 2);
+    assert(registers.get(register_2) == 0);
+
+    apply_binary_field_op(register_1, register_0, register_2, FIELD_SUB, &mut registers);
+    assert(registers.get(register_0) == 1);
+    assert(registers.get(register_1) == 2);
+    assert(registers.get(register_2) == 1);
+
+    apply_binary_field_op(register_1, register_1, register_2, FIELD_MUL, &mut registers);
+    assert(registers.get(register_0) == 1);
+    assert(registers.get(register_1) == 2);
+    assert(registers.get(register_2) == 4);
+
+    apply_binary_field_op(register_2, register_1, register_2, FIELD_DIV, &mut registers);
+    assert(registers.get(register_0) == 1);
+    assert(registers.get(register_1) == 2);
+    assert(registers.get(register_2) == 2);
+
+    apply_binary_field_op(register_2, register_1, register_2, FIELD_EQUALS, &mut registers);
+    assert(registers.get(register_0) == 1);
+    assert(registers.get(register_1) == 2);
+    assert(registers.get(register_2) == 1);
+}
+
 
 global BIN_ADD: u8 = 1;
 global BIN_SUB: u8 = 2;
@@ -68,7 +103,7 @@ fn apply_binary_int_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: Regist
 }
 
 #[test]
-fn test_apply_binary_op() {
+fn test_apply_binary_int_op() {
     let mut registers = Registers::new([0; 3]);
     let lhs = RegisterIndex::new(0);
     let rhs = RegisterIndex::new(1);
