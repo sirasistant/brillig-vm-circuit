@@ -77,10 +77,9 @@ fn main(tape: [Field; TAPE_LEN], initial_registers: [Field; REGISTER_COUNT], ini
                 apply_binary_field_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, &mut registers);
                 program_counter += 1;
             } else if opcode.code == BINARY_INT_OP {
-                // let bin_opcode = opcode.unwrap_binary_int_op();
-                // apply_binary_int_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, bin_opcode.bit_size, &mut registers);
-                // program_counter += 1;
-                assert(false);
+                let bin_opcode = opcode.unwrap_binary_int_op();
+                apply_binary_int_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, bin_opcode.bit_size, &mut registers);
+                program_counter += 1;
             } else if opcode.code == JUMP_IF {
                 let jump_if = opcode.unwrap_jump_if();
                 let condition = registers.get(jump_if.condition);

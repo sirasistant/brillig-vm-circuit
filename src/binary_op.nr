@@ -12,26 +12,30 @@ global FIELD_MUL: u8 = 3;
 global FIELD_DIV: u8 = 4;
 global FIELD_EQUALS: u8 = 5;
 
-fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>){
-    let lhs_value = (*registers).get(lhs);
-    let rhs_value = (*registers).get(rhs);
+fn implement_binary_field_op(op: u8, lhs: Field, rhs: Field) -> Field {
     let mut result_value = 0;
     if op == FIELD_ADD {
-        result_value = lhs_value + rhs_value;
+        result_value = lhs + rhs;
     } else if op == FIELD_SUB {
-        result_value = lhs_value - rhs_value;
+        result_value = lhs - rhs;
     } else if op == FIELD_MUL {
-        result_value = lhs_value * rhs_value;
+        result_value = lhs * rhs;
     } else if op == FIELD_DIV {
-        result_value = lhs_value / rhs_value;
+        result_value = lhs / rhs;
     } else if op == FIELD_EQUALS {
-        result_value = if lhs_value == rhs_value { 1 } else { 0 };
+        result_value = if lhs == rhs { 1 } else { 0 };
     } else {
         // Unimplemented op
         assert(false);
     }
 
-    registers.set(result, result_value);
+    result_value
+}
+
+fn apply_binary_field_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, registers: &mut Registers<N>){
+    let lhs_value = (*registers).get(lhs);
+    let rhs_value = (*registers).get(rhs);
+    registers.set(result, implement_binary_field_op(op, lhs_value, rhs_value));
 }
 
 #[test]
@@ -84,22 +88,110 @@ global BIN_XOR: u8 = 11;
 global BIN_SHL: u8 = 12;
 global BIN_SHR: u8 = 13;
 
+// The compiler breaks if we don't get the one from a separate function
+fn get_one() -> u126 {
+    1 as u126
+}
+
 // TODO use BigUint for this to support precision > u125
-fn apply_binary_int_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, bit_size: u32, registers: &mut Registers<N>){
-    let lhs_value = (*registers).get(lhs) as u125;
-    let rhs_value = (*registers).get(rhs) as u125;
-    // TODO seems like it's not liking this shift
-    let bit_modulo = (1 as u126) << (bit_size as u126);
-    let mut result_value: u126 = 0;
+fn implement_binary_int_op(op: u8, lhs: u125, rhs: u125, bit_size: u32) -> u126 {
+    let bit_modulo = get_one() << (bit_size as u126);
+    let lhs_u126 = (lhs as u126) % bit_modulo;
+    let rhs_u126 = (rhs as u126) % bit_modulo;
+    let mut result_value = 0 as u126;
 
     if op == BIN_ADD {
-        result_value = (lhs_value + rhs_value) as u126 % bit_modulo;
+        result_value = (lhs_u126 + rhs_u126) % bit_modulo;
+    } else if op == BIN_SUB {
+        // Message:  assertion failed: `(left == right)`
+        //   left: `Numeric(Unsigned { bit_size: 126 })`,
+        //  right: `Numeric(NativeField)`: Expected values merged to be of the same type but found u126 and Field
+        // Location: crates/noirc_evaluator/src/ssa/opt/flatten_cfg.rs:523
+        // result_value = ((bit_modulo + lhs_u126) - rhs_u126) % bit_modulo;
+        assert(false);
+    } else if op == BIN_MUL {
+        result_value = (lhs_u126 * rhs_u126) % bit_modulo;
+    } else if op == BIN_UNSIGNED_DIV {
+        assert(rhs_u126 != 0);
+        result_value = (lhs_u126) / rhs_u126;
+    } else if op == BIN_EQUALS {
+        result_value = if lhs_u126 == rhs_u126 { 1 } else { 0 };
+    } else if op == BIN_LESS_THAN {
+        result_value = if (lhs_u126 as u125) < (rhs_u126 as u125) { 1 } else { 0 };
+    } else if op == BIN_LESS_THAN_EQUALS {
+        result_value = if (lhs_u126 as u125) <= (rhs_u126 as u125) { 1 } else { 0 };
+    } else if op == BIN_AND {
+        result_value = lhs_u126 & rhs_u126;
+    } else if op == BIN_OR {
+        result_value = lhs_u126 | rhs_u126;
+    } else if op == BIN_XOR {
+        result_value = lhs_u126 ^ rhs_u126;
     } else {
         // Unimplemented op
         assert(false);
     }
+
+    result_value
+}
+
+#[test]
+fn test_implement_binary_int_op(){
+    assert(implement_binary_int_op(BIN_ADD, 1, 2, 125) == 3);
+    assert(implement_binary_int_op(BIN_ADD, 1, 2, 2) == 3);
+    assert(implement_binary_int_op(BIN_ADD, 1, 2, 1) == 1);
+    assert(implement_binary_int_op(BIN_ADD, 1, 2, 0) == 0);
+
+    // assert(implement_binary_int_op(BIN_SUB, 2, 1, 125) == 1);
+    // assert(implement_binary_int_op(BIN_SUB, 0, 1, 1) == 1);
+    // assert(implement_binary_int_op(BIN_SUB, 1, 0, 1) == 1);
+    // assert(implement_binary_int_op(BIN_SUB, 1, 0, 0) == 0);
+
+    assert(implement_binary_int_op(BIN_MUL, 2, 2, 125) == 4);
+    assert(implement_binary_int_op(BIN_MUL, 2, 2, 2) == 0);
+    assert(implement_binary_int_op(BIN_MUL, 3, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_MUL, 3, 1, 0) == 0);
+
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 125) == 1);
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 3, 1, 1) == 1);
     
-    registers.set(result, result_value as Field);
+    assert(implement_binary_int_op(BIN_EQUALS, 2, 2, 125) == 1);
+    assert(implement_binary_int_op(BIN_EQUALS, 2, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_EQUALS, 3, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_EQUALS, 1, 0, 0) == 1);
+
+    assert(implement_binary_int_op(BIN_LESS_THAN, 2, 2, 125) == 0);
+    assert(implement_binary_int_op(BIN_LESS_THAN, 2, 2, 2) == 0);
+    assert(implement_binary_int_op(BIN_LESS_THAN, 1, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_LESS_THAN, 3, 1, 1) == 0);
+    assert(implement_binary_int_op(BIN_LESS_THAN, 3, 1, 1) == 0);
+
+    assert(implement_binary_int_op(BIN_LESS_THAN_EQUALS, 2, 2, 125) == 1);
+    assert(implement_binary_int_op(BIN_LESS_THAN_EQUALS, 2, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_LESS_THAN_EQUALS, 2, 1, 2) == 0);
+    assert(implement_binary_int_op(BIN_LESS_THAN_EQUALS, 3, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_LESS_THAN_EQUALS, 3, 1, 1) == 1);
+
+    assert(implement_binary_int_op(BIN_AND, 3, 2, 125) == 2);
+    assert(implement_binary_int_op(BIN_AND, 3, 2, 2) == 2);
+    assert(implement_binary_int_op(BIN_AND, 3, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_AND, 3, 1, 0) == 0);
+
+    assert(implement_binary_int_op(BIN_OR, 2, 1, 125) == 3);
+    assert(implement_binary_int_op(BIN_OR, 2, 1, 2) == 3);
+    assert(implement_binary_int_op(BIN_OR, 2, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_OR, 2, 1, 0) == 0);
+
+    assert(implement_binary_int_op(BIN_XOR, 3, 2, 125) == 1);
+    assert(implement_binary_int_op(BIN_XOR, 3, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_XOR, 3, 2, 1) == 1);
+    assert(implement_binary_int_op(BIN_XOR, 3, 2, 0) == 0);
+}
+
+fn apply_binary_int_op<N>(lhs: RegisterIndex, rhs: RegisterIndex, result: RegisterIndex, op: u8, bit_size: u32, registers: &mut Registers<N>){
+    let lhs_value = (*registers).get(lhs) as u125;
+    let rhs_value = (*registers).get(rhs) as u125;
+    registers.set(result, implement_binary_int_op(op, lhs_value, rhs_value, bit_size) as Field);
 }
 
 #[test]
