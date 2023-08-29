@@ -88,6 +88,13 @@ global BIN_XOR: u8 = 11;
 global BIN_SHL: u8 = 12;
 global BIN_SHR: u8 = 13;
 
+unconstrained fn div_rem_hint(lhs: u126, rhs: u126) -> (u126, u126){
+    assert(rhs != 0);
+    let quo = lhs / rhs;
+    let rem = rhs - (quo * rhs);
+    (quo, rem)
+}
+
 // The compiler breaks if we don't get the one from a separate function
 fn get_one() -> u126 {
     1 as u126
@@ -103,19 +110,13 @@ fn implement_binary_int_op(op: u8, lhs: u125, rhs: u125, bit_size: u32) -> u126 
     if op == BIN_ADD {
         result_value = (lhs_u126 + rhs_u126) % bit_modulo;
     } else if op == BIN_SUB {
-        // Message:  assertion failed: `(left == right)`
-        //   left: `Numeric(Unsigned { bit_size: 126 })`,
-        //  right: `Numeric(NativeField)`: Expected values merged to be of the same type but found u126 and Field
-        // Location: crates/noirc_evaluator/src/ssa/opt/flatten_cfg.rs:523
-        // result_value = ((bit_modulo + lhs_u126) - rhs_u126) % bit_modulo;
-        assert(false);
+        result_value = (lhs_u126 - rhs_u126) % bit_modulo;
     } else if op == BIN_MUL {
         result_value = (lhs_u126 * rhs_u126) % bit_modulo;
-    // Message:  attempt to divide by zero
-    // Location: /rustc/69f9c33d71c871fc16ac445211281c6e7a340943/library/core/src/num/mod.rs:933
-    // } else if op == BIN_UNSIGNED_DIV {
-    //     assert(rhs_u126 != 0);
-    //     result_value = (lhs_u126) / rhs_u126;
+    } else if op == BIN_UNSIGNED_DIV {
+        let (quo, rem) = div_rem_hint(lhs_u126, rhs_u126);
+        assert(quo * rhs_u126 + rem == lhs_u126);
+        result_value = quo;
     } else if op == BIN_EQUALS {
         result_value = if lhs_u126 == rhs_u126 { 1 } else { 0 };
     } else if op == BIN_LESS_THAN {
@@ -143,19 +144,19 @@ fn test_implement_binary_int_op(){
     assert(implement_binary_int_op(BIN_ADD, 1, 2, 1) == 1);
     assert(implement_binary_int_op(BIN_ADD, 1, 2, 0) == 0);
 
-    // assert(implement_binary_int_op(BIN_SUB, 2, 1, 125) == 1);
-    // assert(implement_binary_int_op(BIN_SUB, 0, 1, 1) == 1);
-    // assert(implement_binary_int_op(BIN_SUB, 1, 0, 1) == 1);
-    // assert(implement_binary_int_op(BIN_SUB, 1, 0, 0) == 0);
+    assert(implement_binary_int_op(BIN_SUB, 2, 1, 125) == 1);
+    assert(implement_binary_int_op(BIN_SUB, 0, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_SUB, 1, 0, 1) == 1);
+    assert(implement_binary_int_op(BIN_SUB, 1, 0, 0) == 0);
 
     assert(implement_binary_int_op(BIN_MUL, 2, 2, 125) == 4);
     assert(implement_binary_int_op(BIN_MUL, 2, 2, 2) == 0);
     assert(implement_binary_int_op(BIN_MUL, 3, 1, 1) == 1);
     assert(implement_binary_int_op(BIN_MUL, 3, 1, 0) == 0);
 
-    // assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 125) == 1);
-    // assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 2) == 1);
-    // assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 3, 1, 1) == 1);
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 125) == 1);
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 2, 2, 2) == 1);
+    assert(implement_binary_int_op(BIN_UNSIGNED_DIV, 3, 1, 1) == 1);
     
     assert(implement_binary_int_op(BIN_EQUALS, 2, 2, 125) == 1);
     assert(implement_binary_int_op(BIN_EQUALS, 2, 2, 2) == 1);
