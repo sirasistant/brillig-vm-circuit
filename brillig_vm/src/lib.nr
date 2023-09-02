@@ -32,6 +32,11 @@ use memory::Memory;
 use binary_op::{
     apply_binary_field_op,
     apply_binary_int_op,
+    FIELD_ADD,
+    FIELD_SUB,
+    FIELD_MUL,
+    FIELD_DIV,
+    FIELD_EQUALS,
 };
 
 use test_utils::{
@@ -46,6 +51,7 @@ use test_utils::{
     build_call,
     build_return,
     build_const,
+    build_binary_field_op,
 };
 
 
@@ -90,11 +96,20 @@ fn run(
             } else {
                 if opcode.code == BINARY_FIELD_OP {
                     let bin_opcode = opcode.unwrap_binary_field_op();
-                    apply_binary_field_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, &mut registers);
+                    if apply_binary_field_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, &mut registers) {
+                        program_counter += 1;
+                    }else {
+                        errored = true;
+                        finished = true;
+                    }
                 } else if opcode.code == BINARY_INT_OP {
                     let bin_opcode = opcode.unwrap_binary_int_op();
-                    apply_binary_int_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, bin_opcode.bit_size, &mut registers);
-                    program_counter += 1;
+                    if apply_binary_int_op(bin_opcode.lhs, bin_opcode.rhs, bin_opcode.result, bin_opcode.op, bin_opcode.bit_size, &mut registers){
+                        program_counter += 1;
+                    } else {
+                        errored = true;
+                        finished = true;
+                    }
                 } else if opcode.code == JUMP_IF {
                     let jump_if = opcode.unwrap_jump_if();
                     let condition = registers.get(jump_if.condition);
@@ -241,6 +256,21 @@ fn test_call_return() {
     opcodes[3] = build_stop();
     opcodes[4] = build_const(1, 0); // Set register 0 to 1
     opcodes[5] = build_return();
+
+    assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
+}
+
+#[test]
+fn test_field_add(){
+    let mut opcodes = [build_trap(); 8];
+    opcodes[0] = build_const(1, 0); // Write 1 to register 0
+    opcodes[1] = build_const(2, 1); // Write 2 to register 1
+    opcodes[2] = build_binary_field_op(0, 1, 2, FIELD_ADD); // Add register 0 and 1 and write to register 2
+    opcodes[3] = build_const(3, 3); // Write 3 to register 3
+    opcodes[4] = build_binary_field_op(2, 3, 4, FIELD_EQUALS); // Check if register 2 and 3 are equal and write to register 4
+    opcodes[5] = build_jump_if(4, 7); // Check for 1 in register 4
+    opcodes[6] = build_trap();
+    opcodes[7] = build_stop();
 
     assert(execution_succeeds(to_tape(opcodes, [0; TAPE_LEN]), [0; REGISTER_COUNT], [0; MEM_COUNT]));
 }

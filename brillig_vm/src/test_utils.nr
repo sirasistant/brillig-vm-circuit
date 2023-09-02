@@ -87,6 +87,12 @@ fn build_const(value: Field, destination: Field) -> Opcode {
     }
 }
 
+fn build_binary_field_op(lhs: Field, rhs: Field, destination: Field, op: u8) -> Opcode {
+    Opcode {
+        code: BINARY_FIELD_OP,
+        operands: [op as Field, lhs, rhs, destination, 0]
+    }
+}
 
 fn to_tape<N, K>(opcodes: [Opcode; N], mut tape: [Field; K]) -> [Field; K] {
     let mut i = 0;
